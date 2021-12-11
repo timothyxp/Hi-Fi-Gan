@@ -3,18 +3,24 @@ from torch.nn import functional as F
 from torch.nn.utils import weight_norm
 
 
+def calc_padding(kernel_size, dilation):
+    return dilation * (kernel_size - 1) // 2
+
+
+
 class ResBlock(nn.Module):
     def __init__(self, channels, kernel_size, dilations, leaky: float):
         super().__init__()
+        print(kernel_size, dilations)
         self.leaky = leaky
 
         self.convs1 = nn.ModuleList([
-            weight_norm(nn.Conv1d(channels, channels, kernel_size, stride=1, dilation=dilation[0]))
+            weight_norm(nn.Conv1d(channels, channels, kernel_size, stride=1, dilation=dilation[0], padding=calc_padding(kernel_size, dilation[0])))
             for dilation in dilations
         ])
 
         self.convs2 = nn.ModuleList([
-            weight_norm(nn.Conv1d(channels, channels, kernel_size, stride=1, dilation=dilation[1]))
+            weight_norm(nn.Conv1d(channels, channels, kernel_size, stride=1, dilation=dilation[1], padding=calc_padding(kernel_size, dilation[1])))
             for dilation in dilations
         ])
 

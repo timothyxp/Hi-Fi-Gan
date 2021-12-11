@@ -26,7 +26,9 @@ class Generator(nn.Module):
                 stride=config.upsample_size[i]
             ))
 
-            self.mrfs.append(MRF(out_channels, config.kernel_r, config.dilations_r[i], config.leaky))
+            self.mrfs.append(MRF(out_channels, config.kernel_r, config.dilations_r, config.leaky))
+            
+            n_channels = out_channels
 
         self.post_net = nn.Conv1d(n_channels, 1, kernel_size=7, stride=1, padding=3)
 
@@ -44,9 +46,6 @@ class Generator(nn.Module):
 
         F.leaky_relu_(x, self.leaky)
         x = self.post_net(x)
-        x = F.tanh(x)
+        batch.waveform_prediction = F.tanh(x)
 
-        return x
-
-
-
+        return batch

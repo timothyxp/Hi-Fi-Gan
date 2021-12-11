@@ -14,5 +14,5 @@ class Config:
     upsample_size = [8, 8, 2, 2]
     kernel_u = [16, 16, 4, 4]
     kernel_r = [3, 7, 11]
-    dilations_r = [[1, 1], [3, 1], [5, 1]] * 3
+    dilations_r = [[[1, 1], [3, 1], [5, 1]]] * 3
 
