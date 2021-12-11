@@ -26,7 +26,7 @@ class Generator(nn.Module):
                 stride=config.upsample_size[i]
             ))
 
-            self.mrfs.append(MRF(out_channels, config.kernel_r[i], config.dilations_r[i], config.leaky))
+            self.mrfs.append(MRF(out_channels, config.kernel_r, config.dilations_r[i], config.leaky))
 
         self.post_net = nn.Conv1d(n_channels, 1, kernel_size=7, stride=1, padding=3)
 
