@@ -45,7 +45,7 @@ class Generator(nn.Module):
             x = mrf(x)
 
         F.leaky_relu_(x, self.leaky)
-        x = self.post_net(x)
+        x = self.post_net(x).unsqueeze(1)
         batch.waveform_prediction = F.tanh(x)
 
         return batch

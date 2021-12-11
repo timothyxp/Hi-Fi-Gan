@@ -7,7 +7,6 @@ def calc_padding(kernel_size, dilation):
     return dilation * (kernel_size - 1) // 2
 
 
-
 class ResBlock(nn.Module):
     def __init__(self, channels, kernel_size, dilations, leaky: float):
         super().__init__()
