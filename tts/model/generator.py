@@ -2,6 +2,7 @@ from torch import nn
 from tts.config import Config
 from tts.collate_fn.collate import Batch
 from torch.nn import functional as F
+import torch
 from .generator_layers import MRF
 
 
@@ -36,16 +37,14 @@ class Generator(nn.Module):
         x = self.pre_net(batch.melspec)
 
         for up_conv, mrf in zip(self.up_convs, self.mrfs):
-            F.leaky_relu_(x, self.leaky)
+            x = F.leaky_relu(x, self.leaky)
 
-            print("before upconv", x.shape)
             x = up_conv(x)
-            print("after upconv", x.shape)
 
             x = mrf(x)
 
-        F.leaky_relu_(x, self.leaky)
-        x = self.post_net(x)
-        batch.waveform_prediction = F.tanh(x)
+        x = F.leaky_relu(x, self.leaky)
+        x = self.post_net(x).squeeze(1)
+        batch.waveform_prediction = torch.tanh(x)
 
         return batch

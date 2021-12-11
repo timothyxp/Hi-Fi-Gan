@@ -3,7 +3,7 @@ import torch
 from tts.logger.wandb import WanDBWriter
 
 
-def train_epoch(model, optimizer, loader, scheduler, loss_fn, config, featurizer, aligner, logger: WanDBWriter):
+def train_epoch(model, optimizer, loader, scheduler, loss_fn, config, featurizer, logger: WanDBWriter):
     model.train()
 
     for i, batch in enumerate(tqdm(iter(loader))):
@@ -11,43 +11,25 @@ def train_epoch(model, optimizer, loader, scheduler, loss_fn, config, featurizer
         batch = batch.to(config['device'])
         batch.melspec = featurizer(batch.waveform)
 
-        batch.melspec_length = batch.melspec.shape[-1] - batch.melspec.eq(-11.5129251)[:, 0, :].sum(dim=-1)
-
-        with torch.no_grad():
-            durations = aligner(
-                batch.waveform, batch.waveforn_length, batch.transcript
-            ).to(config['device'])
-
-            durations = durations * batch.melspec_length.unsqueeze(-1)
-
-            batch.durations = durations
+       # batch.melspec_length = batch.melspec.shape[-1] - batch.melspec.eq(-11.5129251)[:, 0, :].sum(dim=-1)
 
         optimizer.zero_grad()
 
         batch = model(batch)
 
-        length_loss, melspec_loss = loss_fn(batch)
-
-        loss = length_loss + melspec_loss
+        loss = loss_fn(batch)
 
         loss.backward()
         optimizer.step()
 
-        np_length_loss = length_loss.detach().cpu().numpy()
-        np_melspec_loss = melspec_loss.detach().cpu().numpy()
+        np_loss = loss.detach().cpu().numpy()
 
-        logger.add_scalar("melspec_loss", np_melspec_loss)
-        logger.add_scalar("length_loss", np_length_loss)
+        logger.add_scalar("waveform_reconstruction_loss", np_loss)
 
-        #   scaler.scale(loss).backward()
-
-        if i % config['grad_accum_steps'] == 0:
-            optimizer.step()
-
-        if i > config['len_epoch']:
+        if i > config.get('len_epoch', 1e9):
             break
 
-    scheduler.step()
+        scheduler.step()
 
 
 @torch.no_grad()

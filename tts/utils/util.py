@@ -21,6 +21,11 @@ def set_random_seed(seed=42):
     random.seed(seed)
 
 
+def count_parameters(model):
+    model_parameters = filter(lambda p: p.requires_grad, model.parameters())
+    return sum([np.prod(p.size()) for p in model_parameters])
+    
+    
 def ensure_dir(dirname):
     dirname = Path(dirname)
     if not dirname.is_dir():

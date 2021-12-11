@@ -7,11 +7,9 @@ def calc_padding(kernel_size, dilation):
     return dilation * (kernel_size - 1) // 2
 
 
-
 class ResBlock(nn.Module):
     def __init__(self, channels, kernel_size, dilations, leaky: float):
         super().__init__()
-        print(kernel_size, dilations)
         self.leaky = leaky
 
         self.convs1 = nn.ModuleList([
@@ -27,11 +25,11 @@ class ResBlock(nn.Module):
     def forward(self, x):
         for conv1, conv2 in zip(self.convs1, self.convs2):
             conv_x = conv1(x)
-            F.leaky_relu_(conv_x, self.leaky)
+            conv_x = F.leaky_relu(conv_x, self.leaky)
             conv_x = conv2(conv_x)
-            F.leaky_relu_(conv_x, self.leaky)
+            conv_x = F.leaky_relu(conv_x, self.leaky)
 
-            x += conv_x
+            x = x + conv_x
 
         return x
 
