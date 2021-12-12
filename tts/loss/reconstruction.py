@@ -1,6 +1,5 @@
 from torch import Tensor, nn
 from tts.collate_fn import Batch
-from typing import Tuple
 from torch.nn import functional as F
 
 

@@ -16,6 +16,15 @@ class Config:
     kernel_u = [16, 16, 4, 4]
     kernel_r = [3, 7, 11]
     dilations_r = [[[1, 1], [3, 1], [5, 1]]] * 3
+
+    mpd_kernel_size: int = 5
+    mpd_stride: int = 3
+    mpd_periods = [2, 3, 5, 7, 11]
+
+    mcd_num_layers = 3
+
+    lambda_fm: float = 2.
+    lambda_mel: float = 45
     
     wandb_project = 'Hi-Fi-GAN'
     

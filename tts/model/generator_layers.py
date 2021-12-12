@@ -13,12 +13,18 @@ class ResBlock(nn.Module):
         self.leaky = leaky
 
         self.convs1 = nn.ModuleList([
-            weight_norm(nn.Conv1d(channels, channels, kernel_size, stride=1, dilation=dilation[0], padding=calc_padding(kernel_size, dilation[0])))
+            weight_norm(nn.Conv1d(
+                channels, channels, kernel_size, stride=1,
+                dilation=dilation[0], padding=calc_padding(kernel_size, dilation[0])
+            ))
             for dilation in dilations
         ])
 
         self.convs2 = nn.ModuleList([
-            weight_norm(nn.Conv1d(channels, channels, kernel_size, stride=1, dilation=dilation[1], padding=calc_padding(kernel_size, dilation[1])))
+            weight_norm(nn.Conv1d(
+                channels, channels, kernel_size, stride=1,
+                dilation=dilation[1], padding=calc_padding(kernel_size, dilation[1])
+            ))
             for dilation in dilations
         ])
 

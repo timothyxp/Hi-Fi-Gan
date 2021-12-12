@@ -1,6 +1,20 @@
 from tqdm.autonotebook import tqdm
 import torch
 from tts.logger.wandb import WanDBWriter
+from tts.utils.util import set_require_grad
+from tts.model.generator import Generator
+from tts.model.discriminator import Discriminator
+from tts.collate_fn.collate import Batch
+from collections import defaultdict
+import numpy as np
+
+
+def log_audios(batch: Batch, logger: WanDBWriter):
+    if batch.waveform is not None:
+        logger.add_audio("true_audio", batch.waveform[0], sample_rate=22050)
+
+    if batch.waveform_prediction is not None:
+        logger.add_audio("pred_audio", batch.waveform_prediction[0], sample_rate=22050)
 
 
 def train_epoch(model, optimizer, loader, scheduler, loss_fn, config, featurizer, logger: WanDBWriter):
@@ -10,8 +24,6 @@ def train_epoch(model, optimizer, loader, scheduler, loss_fn, config, featurizer
         logger.set_step(logger.step + 1, mode='train')
         batch = batch.to(config['device'])
         batch.melspec = featurizer(batch.waveform)
-
-       # batch.melspec_length = batch.melspec.shape[-1] - batch.melspec.eq(-11.5129251)[:, 0, :].sum(dim=-1)
 
         optimizer.zero_grad()
 
@@ -32,20 +44,142 @@ def train_epoch(model, optimizer, loader, scheduler, loss_fn, config, featurizer
         scheduler.step()
 
 
-@torch.no_grad()
-def evaluate(model, loader, config, vocoder, logger: WanDBWriter):
-    model.eval()
+def gan_train_epoch(
+        G: Generator, D: Discriminator, optimizer_G, optimizer_D, loader, loss_fn,
+        config, scheduler_G=None, scheduler_D=None, logger: WanDBWriter = None
+):
+    G.train()
+    D.train()
+    g_steps = 0
+    d_steps = 0
 
-    for batch in tqdm(iter(loader)):
+    for i, batch in enumerate(tqdm(iter(loader))):
+        if logger is not None:
+            logger.set_step(logger.step + 1, mode='train')
+
+        batch = batch.to(config['device'], non_blocking=True)
+
+        batch = G(batch)
+
+        set_require_grad(D, True)
+        set_require_grad(G, False)
+
+        def d_step(batch):
+            nonlocal d_steps
+            d_steps += 1
+            optimizer_D.zero_grad()
+
+            fake_loss, true_loss = loss_fn(batch, G, D, generator_step=False)
+            loss = fake_loss + true_loss
+
+            loss.backward()
+            optimizer_D.step()
+
+            if logger is not None:
+                fake_loss_np = fake_loss.detach().cpu().numpy()
+                true_loss_np = true_loss.detach().cpu().numpy()
+                total_loss_np = loss.detach().cpu().numpy()
+
+                logger.add_scalar("D_fake_loss", fake_loss_np)
+                logger.add_scalar("D_true_loss", true_loss_np)
+                logger.add_scalar("D_total_loss", total_loss_np)
+                logger.add_scalar("D_steps", d_steps)
+
+            return loss
+
+        loss = d_step(batch)
+
+        if config.get('discriminator_backprop_threshold') is not None:
+            j = 0
+            while loss.item() > config['discriminator_backprop_threshold']:
+                loss = d_step(batch)
+
+                j += 1
+                if j > config['max_steps']:
+                    break
+
+        set_require_grad(D, False)
+        set_require_grad(G, True)
+
+        def g_step(batch):
+            nonlocal g_steps
+            g_steps += 1
+            optimizer_G.zero_grad()
+
+            gan_loss, fm_loss, reconstruction = loss_fn(batch, G, D, generator_step=True)
+            loss = gan_loss + reconstruction
+            loss.backward()
+            optimizer_G.step()
+
+            if logger is not None:
+                gan_loss_np = gan_loss.detach().cpu().numpy()
+                fm_loss_np = fm_loss.detach().cpu().numpy()
+                reconstruction_np = reconstruction.detach().cpu().numpy()
+                total_loss_np = loss.detach().cpu().numpy()
+
+                logger.add_scalar("G_gan_loss", gan_loss_np)
+                logger.add_scalar("G_reconstruction_loss", reconstruction_np)
+                logger.add_scalar("G_FM_loss", fm_loss_np)
+                logger.add_scalar("G_total_loss", total_loss_np)
+                logger.add_scalar("G_steps", g_steps)
+
+            return loss
+
+        loss = g_step(batch)
+
+        if config.get('generator_backprop_threshold') is not None:
+            j = 0
+
+            while loss.item() > config['generator_backprop_threshold']:
+                batch = G(batch)
+
+                loss = g_step(batch)
+
+                j += 1
+                if j > config['max_steps']:
+                    break
+
+        if logger is not None and logger.step % config['log_train_step'] == 0:
+            log_audios(batch, logger)
+
+        if i > config.get('len_epoch', 1e9):
+            break
+
+        if scheduler_G is not None:
+            scheduler_G.step()
+
+        if scheduler_D is not None:
+            scheduler_D.step()
+
+
+@torch.inference_mode()
+def evaluate(model, loader, config, loss_fn, metric_calculators=(), logger: WanDBWriter = None):
+    model.eval()
+    metrics = defaultdict(list)
+    batches = []
+
+    for i, batch in enumerate(tqdm(iter(loader))):
+        if logger is not None:
+            logger.set_step(logger.step + 1, mode='val')
+
         batch = batch.to(config['device'])
 
         batch = model(batch)
 
-        for i in range(batch.melspec_prediction.shape[0]):
-            logger.set_step(logger.step + 1, "val")
+        loss = loss_fn(batch)
 
-            reconstructed_wav = vocoder.inference(batch.melspec_prediction[i:i + 1].transpose(-1, -2)).cpu()
+        batches.append(batch.to('cpu'))
 
-            logger.add_text("text", batch.transcript[i])
-            logger.add_audio("audio", reconstructed_wav, sample_rate=22050)
+        metrics['reconstruction_loss'].append(loss.detach().cpu().numpy())
 
+        if logger is not None and logger.step % config['log_val_step'] == 0:
+            log_audios(batch, logger)
+
+    for calc in metric_calculators:
+        metrics.update(calc.calculate(batches))
+
+    if logger is not None:
+        for metric_name, metric_val in metrics.items():
+            logger.add_scalar(metric_name, np.mean(metric_val))
+
+    return metrics
