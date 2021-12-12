@@ -28,10 +28,13 @@ class Config:
     
     wandb_project = 'Hi-Fi-GAN'
     
+    log_train_step: int = 500
+    log_val_step: int = 100
+    
     n_epochs: int = 100
     lr = 4e-3
     
-    overfit_batch = True
+    overfit_batch = False
 
     def get(self, attr, default_value=None):
         return getattr(self, attr, default_value)

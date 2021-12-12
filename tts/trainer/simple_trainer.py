@@ -46,7 +46,7 @@ def train_epoch(model, optimizer, loader, scheduler, loss_fn, config, featurizer
 
 def gan_train_epoch(
         G: Generator, D: Discriminator, optimizer_G, optimizer_D, loader, loss_fn,
-        config, scheduler_G=None, scheduler_D=None, logger: WanDBWriter = None
+        config, featurizer, scheduler_G=None, scheduler_D=None, logger: WanDBWriter = None
 ):
     G.train()
     D.train()
@@ -58,6 +58,7 @@ def gan_train_epoch(
             logger.set_step(logger.step + 1, mode='train')
 
         batch = batch.to(config['device'], non_blocking=True)
+        batch.melspec = featurizer(batch.waveform)
 
         batch = G(batch)
 
@@ -69,7 +70,7 @@ def gan_train_epoch(
             d_steps += 1
             optimizer_D.zero_grad()
 
-            fake_loss, true_loss = loss_fn(batch, G, D, generator_step=False)
+            fake_loss, true_loss = loss_fn(batch, D.mpd, D.mcd, generator_step=False)
             loss = fake_loss + true_loss
 
             loss.backward()
@@ -106,8 +107,8 @@ def gan_train_epoch(
             g_steps += 1
             optimizer_G.zero_grad()
 
-            gan_loss, fm_loss, reconstruction = loss_fn(batch, G, D, generator_step=True)
-            loss = gan_loss + reconstruction
+            gan_loss, fm_loss, reconstruction = loss_fn(batch, D.mpd, D.mcd, generator_step=True)
+            loss = gan_loss + reconstruction + fm_loss
             loss.backward()
             optimizer_G.step()
 
@@ -124,7 +125,8 @@ def gan_train_epoch(
                 logger.add_scalar("G_steps", g_steps)
 
             return loss
-
+        
+        batch = G(batch)
         loss = g_step(batch)
 
         if config.get('generator_backprop_threshold') is not None:
