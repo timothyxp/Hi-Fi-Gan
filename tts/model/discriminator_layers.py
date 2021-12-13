@@ -13,11 +13,11 @@ class MPDLayer(nn.Module):
         self.leaky = leaky
 
         self.convs = nn.ModuleList([
+            norm(nn.Conv2d(1, 32, kernel_size=(kernel_size, 1), stride=(stride, 1))),
             norm(nn.Conv2d(32, 64, kernel_size=(kernel_size, 1), stride=(stride, 1))),
             norm(nn.Conv2d(64, 128, kernel_size=(kernel_size, 1), stride=(stride, 1))),
             norm(nn.Conv2d(128, 256, kernel_size=(kernel_size, 1), stride=(stride, 1))),
-            norm(nn.Conv2d(256, 512, kernel_size=(kernel_size, 1), stride=(stride, 1))),
-            norm(nn.Conv2d(512, 1024, kernel_size=(kernel_size, 1), stride=(stride, 1)))
+            norm(nn.Conv2d(256, 1024, kernel_size=(kernel_size, 1), stride=(stride, 1)))
         ])
 
         self.postnet = nn.Conv2d(1024, 1, kernel_size=(3, 1), stride=(1, 1))
@@ -25,7 +25,7 @@ class MPDLayer(nn.Module):
     def forward(self, x):
         batch_size, channels, seq_len = x.shape
 
-        padded_len = np.ceil(seq_len / self.period) * self.period
+        padded_len = int(np.ceil(seq_len / self.period) * self.period)
         if padded_len != seq_len:
             x = F.pad(x, (0, padded_len - seq_len))
 
@@ -48,15 +48,15 @@ class MCDLayer(nn.Module):
 
         self.leaky = leaky
         self.convs = nn.ModuleList([
-            norm(nn.Conv1d(1, 16, kernel_size=(15, 1), stride=1, padding=7)),
-            norm(nn.Conv1d(16, 64, kernel_size=(41, 1), stride=4, groups=4, padding=7)),
-            norm(nn.Conv1d(64, 256, kernel_size=(41, 1), stride=4, groups=16, padding=7)),
-            norm(nn.Conv1d(256, 1024, kernel_size=(41, 1), stride=4, groups=64, padding=7)),
-            norm(nn.Conv1d(1024, 1024, kernel_size=(41, 1), stride=4, groups=256, padding=7)),
-            norm(nn.Conv1d(1024, 1024, kernel_size=(5, 1), stride=1, padding=7))
+            norm(nn.Conv1d(1, 16, kernel_size=15, stride=1, padding=7)),
+            norm(nn.Conv1d(16, 64, kernel_size=41, stride=4, groups=4, padding=7)),
+            norm(nn.Conv1d(64, 256, kernel_size=41, stride=4, groups=16, padding=7)),
+            norm(nn.Conv1d(256, 512, kernel_size=41, stride=4, groups=64, padding=7)),
+            norm(nn.Conv1d(512, 1024, kernel_size=41, stride=4, groups=256, padding=7)),
+            norm(nn.Conv1d(1024, 1024, kernel_size=5, stride=1, padding=7))
         ])
 
-        self.postnet = nn.Conv1d(1024, 1, kernel_size=(3, 1), stride=1)
+        self.postnet = nn.Conv1d(1024, 1, kernel_size=3, stride=1)
 
     def forward(self, x):
         feature_maps = []

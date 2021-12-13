@@ -22,6 +22,8 @@ class Config:
     mpd_periods = [2, 3, 5, 7, 11]
 
     mcd_num_layers = 3
+    
+    test_size: float = 0.3
 
     lambda_fm: float = 2.
     lambda_mel: float = 45
@@ -31,8 +33,8 @@ class Config:
     log_train_step: int = 500
     log_val_step: int = 100
     
-    n_epochs: int = 100
-    lr = 4e-3
+    n_epochs: int = 10
+    lr = 2e-4
     
     overfit_batch = False
 

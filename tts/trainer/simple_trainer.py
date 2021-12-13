@@ -148,14 +148,20 @@ def gan_train_epoch(
             break
 
         if scheduler_G is not None:
-            scheduler_G.step()
+            if logger is not None:
+                logger.add_scalar("G_learning rate", scheduler_G.get_last_lr()[0])
+
+            scheduler_G.step()            
 
         if scheduler_D is not None:
+            if logger is not None:
+                logger.add_scalar("D_learning rate", scheduler_D.get_last_lr()[0])
+            
             scheduler_D.step()
 
 
 @torch.inference_mode()
-def evaluate(model, loader, config, loss_fn, metric_calculators=(), logger: WanDBWriter = None):
+def evaluate(model, loader, config, loss_fn, featurizer, metric_calculators=(), logger: WanDBWriter = None):
     model.eval()
     metrics = defaultdict(list)
     batches = []
@@ -165,6 +171,7 @@ def evaluate(model, loader, config, loss_fn, metric_calculators=(), logger: WanD
             logger.set_step(logger.step + 1, mode='val')
 
         batch = batch.to(config['device'])
+        batch.melspec = featurizer(batch.waveform)
 
         batch = model(batch)
 
