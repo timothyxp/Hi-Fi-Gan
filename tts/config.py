@@ -34,7 +34,7 @@ class Config:
     log_val_step: int = 100
     
     n_epochs: int = 10
-    lr = 2e-4
+    lr = 3e-4
     
     overfit_batch = False
 

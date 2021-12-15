@@ -5,8 +5,23 @@ from tts.utils.util import set_require_grad
 from tts.model.generator import Generator
 from tts.model.discriminator import Discriminator
 from tts.collate_fn.collate import Batch
+from torchvision.transforms import ToTensor
 from collections import defaultdict
 import numpy as np
+import io
+import matplotlib.pyplot as plt
+from PIL import Image
+
+
+def plot_spectrogram_to_buf(spectrogram_tensor, name=None):
+    plt.figure(figsize=(20, 5))
+    plt.imshow(spectrogram_tensor)
+    plt.title(name)
+    buf = io.BytesIO()
+    plt.savefig(buf, format='png')
+    buf.seek(0)
+    return buf
+
 
 
 def log_audios(batch: Batch, logger: WanDBWriter):
@@ -17,7 +32,7 @@ def log_audios(batch: Batch, logger: WanDBWriter):
         logger.add_audio("pred_audio", batch.waveform_prediction[0], sample_rate=22050)
 
 
-def train_epoch(model, optimizer, loader, scheduler, loss_fn, config, featurizer, logger: WanDBWriter):
+def train_epoch(model, optimizer, loader, loss_fn, config, featurizer, logger: WanDBWriter, scheduler=None):
     model.train()
 
     for i, batch in enumerate(tqdm(iter(loader))):
@@ -40,8 +55,14 @@ def train_epoch(model, optimizer, loader, scheduler, loss_fn, config, featurizer
 
         if i > config.get('len_epoch', 1e9):
             break
+            
+        if logger is not None and logger.step % config['log_train_step'] == 0:
+            log_audios(batch, logger)
+            logger.add_image("spectrogram_true", Image.open(plot_spectrogram_to_buf(batch.melspec[0].detach().cpu())))
+            logger.add_image("spectrogram_pred", Image.open(plot_spectrogram_to_buf(featurizer(batch.waveform_prediction)[0].detach().cpu())))
 
-        scheduler.step()
+        if scheduler is not None:
+            scheduler.step()
 
 
 def gan_train_epoch(
@@ -143,6 +164,8 @@ def gan_train_epoch(
 
         if logger is not None and logger.step % config['log_train_step'] == 0:
             log_audios(batch, logger)
+            logger.add_image("spectrogram_true", Image.open(plot_spectrogram_to_buf(batch.melspec[0].detach().cpu())))
+            logger.add_image("spectrogram_pred", Image.open(plot_spectrogram_to_buf(featurizer(batch.waveform_prediction)[0].detach().cpu())))
 
         if i > config.get('len_epoch', 1e9):
             break

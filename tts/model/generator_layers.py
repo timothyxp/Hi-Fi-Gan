@@ -30,10 +30,10 @@ class ResBlock(nn.Module):
 
     def forward(self, x):
         for conv1, conv2 in zip(self.convs1, self.convs2):
-            conv_x = conv1(x)
+            conv_x = F.leaky_relu(x, self.leaky)
+            conv_x = conv1(conv_x)
             conv_x = F.leaky_relu(conv_x, self.leaky)
             conv_x = conv2(conv_x)
-            conv_x = F.leaky_relu(conv_x, self.leaky)
 
             x = x + conv_x
 

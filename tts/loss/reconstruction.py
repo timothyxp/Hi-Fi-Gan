@@ -14,12 +14,13 @@ class WaveFormReconstructionLoss(nn.Module):
         melspec_prediction = self.featurizer(batch.waveform_prediction)
         melspec = batch.melspec
 
-        diff_len = melspec_prediction.shape[-1] - batch.melspec.shape[-1]
-        if diff_len > 0:
-            melspec_prediction = F.pad(melspec_prediction, (0, diff_len), self.pad_value)
-        else:
-            melspec = F.pad(melspec, (0, -diff_len), self.pad_value)
+        diff_len = melspec_prediction.shape[-1] - melspec.shape[-1]
 
+        if diff_len < 0:
+            melspec_prediction = F.pad(melspec_prediction, (0, -diff_len), value=self.pad_value)
+        else:
+            melspec = F.pad(melspec, (0, diff_len), value=self.pad_value)
+                
         waveform_l1 = self.waveform_loss(
             melspec,
             melspec_prediction

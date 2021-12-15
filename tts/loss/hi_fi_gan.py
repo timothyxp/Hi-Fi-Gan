@@ -6,9 +6,9 @@ from .reconstruction import WaveFormReconstructionLoss
 
 
 class HiFiGANLoss(nn.Module):
-    def __init__(self, config):
+    def __init__(self, config, reconstruction_loss):
         super().__init__()
-        self.waveform_loss = WaveFormReconstructionLoss()
+        self.waveform_loss = reconstruction_loss
         self.fm_loss = nn.L1Loss()
         self.lambda_mel = config.lambda_mel
         self.lambda_fm = config.lambda_fm
