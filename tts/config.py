@@ -23,7 +23,7 @@ class Config:
 
     mcd_num_layers = 3
     
-    test_size: float = 0.3
+    test_size: float = 0.1
 
     lambda_fm: float = 2.
     lambda_mel: float = 45
@@ -36,7 +36,7 @@ class Config:
     n_epochs: int = 10
     lr = 3e-4
     
-    overfit_batch = False
+    overfit_batch = True
 
     def get(self, attr, default_value=None):
         return getattr(self, attr, default_value)

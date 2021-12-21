@@ -24,12 +24,12 @@ def plot_spectrogram_to_buf(spectrogram_tensor, name=None):
 
 
 
-def log_audios(batch: Batch, logger: WanDBWriter):
+def log_audios(batch: Batch, logger: WanDBWriter, i=0, postfix=""):
     if batch.waveform is not None:
-        logger.add_audio("true_audio", batch.waveform[0], sample_rate=22050)
+        logger.add_audio("true_audio" + postfix, batch.waveform[i], sample_rate=22050)
 
     if batch.waveform_prediction is not None:
-        logger.add_audio("pred_audio", batch.waveform_prediction[0], sample_rate=22050)
+        logger.add_audio("pred_audio" + postfix, batch.waveform_prediction[i], sample_rate=22050)
 
 
 def train_epoch(model, optimizer, loader, loss_fn, config, featurizer, logger: WanDBWriter, scheduler=None):
